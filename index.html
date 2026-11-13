@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Servant to God</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Yu-Gi-Oh! inspired</p>
+          <h1>Servant to God</h1>
+        </div>
+        <div class="turn-badge" id="turnBadge">Player 1</div>
+      </header>
+
+      <section class="lp-panel">
+        <div class="lp-box">
+          <span>Player 1 LP</span>
+          <strong id="player1Lp">8000</strong>
+        </div>
+        <div class="lp-box enemy">
+          <span>Player 2 LP</span>
+          <strong id="player2Lp">8000</strong>
+        </div>
+      </section>
+
+      <section class="phase-panel">
+        <div>
+          <span class="label">Current phase</span>
+          <h2 id="phaseName">Draw Phase</h2>
+        </div>
+
+        <div class="controls-row">
+          <button id="nextPhaseBtn" class="primary">Next Phase</button>
+          <button id="endTurnBtn" class="secondary">End Turn</button>
+          <button id="restartBtn" class="ghost">Restart</button>
+        </div>
+      </section>
+
+      <section class="board">
+        <div class="board-header">
+          <h3>Player 2 Field</h3>
+          <span id="enemyFieldCount">0 / 5</span>
+        </div>
+        <div id="opponentField" class="field-grid"></div>
+
+        <div class="board-header top-space">
+          <h3>Player 1 Field</h3>
+          <span id="playerFieldCount">0 / 5</span>
+        </div>
+        <div id="playerField" class="field-grid"></div>
+      </section>
+
+      <section class="side-panel">
+        <div class="zone-card">
+          <div class="zone-header">
+            <h3>Hand</h3>
+            <span id="handCount">0</span>
+          </div>
+          <div id="handArea" class="hand-area"></div>
+        </div>
+
+        <div class="zone-card">
+          <div class="zone-header">
+            <h3>Spell / Trap Zone</h3>
+            <span id="spellTrapCount">0</span>
+          </div>
+          <div id="spellTrapArea" class="field-grid small-grid"></div>
+        </div>
+      </section>
+
+      <section class="action-panel">
+        <div class="action-buttons">
+          <button id="summonBtn" class="primary">Normal Summon</button>
+          <button id="setMonsterBtn" class="secondary">Set Monster</button>
+          <button id="setSpellBtn" class="secondary">Set Spell/Trap</button>
+          <button id="activateBtn" class="secondary">Activate</button>
+          <button id="attackBtn" class="warning">Attack</button>
+        </div>
+      </section>
+
+      <div id="statusLog" class="status-log"></div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
