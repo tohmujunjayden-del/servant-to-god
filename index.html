@@ -1,90 +1,847 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Servant to God</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="app-shell">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Yu-Gi-Oh! inspired</p>
-          <h1>Servant to God</h1>
-        </div>
-        <div class="turn-badge" id="turnBadge">Player 1</div>
-      </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Servant to God - Master Duel Style</title>
+  <style>
+    :root {
+      --bg: #0d1422;
+      --panel: #171f2e;
+      --panel-strong: #1d2940;
+      --gold: #f4d07a;
+      --blue: #5d7bff;
+      --blue-dark: #3f5be0;
+      --red: #e15c5c;
+      --red-dark: #b93a3a;
+      --green: #4dbb88;
+      --text: #edf3ff;
+      --muted: #bac4dc;
+      --border: rgba(255,255,255,0.08);
+      --shadow: rgba(0,0,0,0.28);
+    }
 
-      <section class="lp-panel">
-        <div class="lp-box">
-          <span>Player 1 LP</span>
-          <strong id="player1Lp">8000</strong>
-        </div>
-        <div class="lp-box enemy">
-          <span>Player 2 LP</span>
-          <strong id="player2Lp">8000</strong>
-        </div>
-      </section>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: Arial, sans-serif; }
+    body { min-height: 100vh; }
+    button { border: none; border-radius: 10px; padding: 10px 14px; font-weight: 700; font-size: 0.95rem; cursor: pointer; } 
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-      <section class="phase-panel">
-        <div>
-          <span class="label">Current phase</span>
-          <h2 id="phaseName">Draw Phase</h2>
-        </div>
+    .app { max-width: 1240px; margin: 0 auto; padding: 20px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .eyebrow { margin: 0 0 4px; color: var(--gold); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(2rem, 4vw, 3rem); }
 
-        <div class="controls-row">
-          <button id="nextPhaseBtn" class="primary">Next Phase</button>
-          <button id="endTurnBtn" class="secondary">End Turn</button>
-          <button id="restartBtn" class="ghost">Restart</button>
-        </div>
-      </section>
+    .turn-badge {
+      background: rgba(93,123,255,0.15);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 16px;
+      color: var(--gold);
+      font-weight: 700;
+    }
 
-      <section class="board">
-        <div class="board-header">
-          <h3>Player 2 Field</h3>
-          <span id="enemyFieldCount">0 / 5</span>
-        </div>
-        <div id="opponentField" class="field-grid"></div>
+    .lp-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
 
-        <div class="board-header top-space">
-          <h3>Player 1 Field</h3>
-          <span id="playerFieldCount">0 / 5</span>
-        </div>
-        <div id="playerField" class="field-grid"></div>
-      </section>
+    .lp-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 10px 20px var(--shadow);
+    }
+    .lp-box.enemy { background: rgba(225,92,92,0.1); border-color: rgba(225,92,92,0.25); }
+    .lp-box strong { font-size: clamp(1.8rem, 4vw, 2.8rem); }
 
-      <section class="side-panel">
-        <div class="zone-card">
-          <div class="zone-header">
-            <h3>Hand</h3>
-            <span id="handCount">0</span>
+    .phase-bar, .board, .zone, .actions {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 10px 20px var(--shadow);
+    }
+
+    .phase-bar {
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      padding: 18px; margin-bottom: 18px;
+    }
+    .label { display: block; font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .primary { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: white; }
+    .secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--border); }
+    .ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .danger { background: linear-gradient(135deg, var(--red), var(--red-dark)); color: white; }
+
+    .board { padding: 18px; margin-bottom: 18px; }
+    .board-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .field-grid { display: grid; grid-template-columns: repeat(5, minmax(110px, 1fr)); gap: 10px; }
+    .slot {
+      min-height: 160px; padding: 8px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.02); display: flex; flex-direction: column; justify-content: center; align-items: center;
+      text-align: center; color: var(--muted); user-select: none; overflow: hidden;
+    }
+    .slot.empty { color: rgba(255,255,255,0.35); }
+    .slot.filled {
+      border-style: solid; border-color: rgba(255,255,255,0.15);
+      background: linear-gradient(180deg, rgba(93,123,255,0.14), rgba(255,255,255,0.04));
+      cursor: pointer;
+    }
+    .slot.enemy { background: linear-gradient(180deg, rgba(225,92,92,0.12), rgba(255,255,255,0.04)); }
+    .slot.selected { box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 2px rgba(244,208,122,0.32); }
+    .slot .name { font-weight: 700; font-size: 0.96rem; margin-bottom: 6px; word-break: break-word; }
+    .slot .stats { font-size: 0.8rem; color: var(--gold); }
+    .slot .status { margin-top: 6px; font-size: 0.72rem; color: var(--muted); }
+
+    .zone-wrap { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; margin-bottom: 18px; }
+    .zone { padding: 16px; }
+    .zone-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .hand-area { display: flex; flex-wrap: wrap; gap: 10px; }
+    .card {
+      width: 165px; min-height: 175px; border-radius: 12px; padding: 10px 12px; background: linear-gradient(180deg, rgba(93,123,255,0.18), rgba(255,255,255,0.04));
+      border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; box-shadow: 0 8px 14px rgba(0,0,0,0.18);
+    }
+    .card.selected { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(244,208,122,0.32); }
+    .card .type { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .card .name { font-weight: 700; font-size: 1.02rem; margin: 8px 0; }
+    .card .meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--muted); }
+    .small-grid { grid-template-columns: repeat(5, minmax(70px, 1fr)); }
+
+    .actions { padding: 16px; }
+    .action-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .status-log { min-height: 52px; margin-top: 18px; padding: 12px 16px; color: var(--muted); background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; }
+
+    @media (max-width: 780px) {
+      .field-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
+      .phase-bar, .zone-wrap { display: block; }
+      .controls { margin-top: 12px; }
+      .card { width: calc(50% - 10px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Yu-Gi-Oh! inspired</p>
+        <h1>Servant to God</h1>
+      </div>
+      <div id="turnBadge" class="turn-badge">Player 1</div>
+    </header>
+
+    <section class="lp-row">
+      <div class="lp-box">
+        <span>Player 1 LP</span>
+        <strong id="player1Lp">8000</strong>
+      </div>
+      <div class="lp-box enemy">
+        <span>Player 2 LP</span>
+        <strong id="player2Lp">8000</strong>
+      </div>
+    </section>
+
+    <section class="phase-bar">
+      <div>
+        <span class="label">Current phase</span>
+        <h2 id="phaseName">Draw Phase</h2>
+      </div>
+      <div class="controls">
+        <button id="nextPhaseBtn" class="primary">Next Phase</button>
+        <button id="endTurnBtn" class="secondary">End Turn</button>
+        <button id="restartBtn" class="ghost">Restart</button>
+      </div>
+    </section>
+
+    <section class="board">
+      <div class="board-row">
+        <h3>Player 2 Field</h3>
+        <span id="oppFieldCount">0 / 5</span>
+      </div>
+      <div id="oppField" class="field-grid"></div>
+
+      <div class="board-row" style="margin-top: 18px;">
+        <h3>Player 1 Field</h3>
+        <span id="playerFieldCount">0 / 5</span>
+      </div>
+      <div id="playerField" class="field-grid"></div>
+    </section>
+
+    <section class="zone-wrap">
+      <div class="zone">
+        <div class="zone-header">
+          <h3>Hand</h3>
+          <span id="handCount">0</span>
+        </div>
+        <div id="handArea" class="hand-area"></div>
+      </div>
+
+      <div class="zone">
+        <div class="zone-header">
+          <h3>Spell / Trap Zone</h3>
+          <span id="stZoneCount">0</span>
+        </div>
+        <div id="stZone" class="field-grid small-grid"></div>
+      </div>
+    </section>
+
+    <section class="actions">
+      <div class="action-row">
+        <button id="summonBtn" class="primary">Normal Summon</button>
+        <button id="setMonsterBtn" class="secondary">Set Monster</button>
+        <button id="setStBtn" class="secondary">Set Spell/Trap</button>
+        <button id="activateBtn" class="secondary">Activate</button>
+        <button id="attackBtn" class="danger">Attack</button>
+      </div>
+    </section>
+
+    <div id="statusLog" class="status-log"></div>
+  </div>
+
+  <script>
+    const phases = ['Draw Phase','Standby Phase','Main Phase 1','Battle Phase','Main Phase 2','End Phase'];
+    const MAX_FIELD = 5;
+    const STARTING_LP = 8000;
+    const STARTING_HAND = 5;
+
+    const monsterPool = [
+      { name: 'Blue-Eyes White Dragon', type: 'monster', level: 8, atk: 3000, def: 2500 },
+      { name: 'Dark Magician', type: 'monster', level: 7, atk: 2500, def: 2100 },
+      { name: 'Gaia the Fierce Knight', type: 'monster', level: 7, atk: 2300, def: 2100 },
+      { name: 'Summoned Skull', type: 'monster', level: 6, atk: 2500, def: 1200 },
+      { name: 'Mystical Elf', type: 'monster', level: 4, atk: 800, def: 2000 },
+      { name: 'Silver Fang', type: 'monster', level: 3, atk: 1200, def: 800 },
+      { name: 'Mighty Warrior', type: 'monster', level: 4, atk: 1400, def: 1000 },
+      { name: 'Battle Ox', type: 'monster', level: 4, atk: 1700, def: 1000 },
+      { name: 'Kuriboh', type: 'monster', level: 1, atk: 300, def: 200 },
+      { name: 'Harpie Lady', type: 'monster', level: 4, atk: 1300, def: 1400 },
+      { name: 'Sangan', type: 'monster', level: 4, atk: 1000, def: 600 },
+      { name: 'Flame Swordsman', type: 'monster', level: 5, atk: 1800, def: 1600 },
+      { name: 'Jinzo', type: 'monster', level: 6, atk: 2400, def: 1500 },
+      { name: 'Luster Dragon', type: 'monster', level: 4, atk: 1900, def: 1200 },
+      { name: 'Red-Eyes Black Dragon', type: 'monster', level: 7, atk: 2400, def: 2000 }
+    ];
+
+    const spellPool = [
+      { name: 'Pot of Greed', type: 'spell', effect: 'draw2' },
+      { name: 'Raiden Burst', type: 'spell', effect: 'deal800' },
+      { name: 'Dark Hole', type: 'spell', effect: 'destroyAllMonsters' },
+      { name: 'Graceful Charity', type: 'spell', effect: 'draw3discard1' },
+      { name: 'Monster Reborn', type: 'spell', effect: 'revive' }
+    ];
+
+    const trapPool = [
+      { name: 'Mirror Force', type: 'trap', effect: 'destroyAttackers' },
+      { name: 'Trap Hole', type: 'trap', effect: 'destroyLevel4' },
+      { name: 'Negate Attack', type: 'trap', effect: 'negateBattle' },
+      { name: 'Time Machine', type: 'trap', effect: 'draw1' },
+      { name: 'Wall of Disruption', type: 'trap', effect: 'reflectDamage' }
+    ];
+
+    const state = {
+      players: [],
+      currentPlayer: 0,
+      phaseIndex: 0,
+      turnNumber: 1,
+      winner: null,
+      selectedCard: null,
+      log: []
+    };
+
+    function cloneCard(base) {
+      return {
+        ...base,
+        id: `${base.name}-${Math.random().toString(16).slice(2, 9)}`,
+        position: 'attack',
+        faceUp: true,
+        isFaceDown: false,
+        canAttack: true,
+        setTurn: 0
+      };
+    }
+
+    function buildDeck() {
+      const deck = [];
+      for (let i = 0; i < 18; i++) deck.push(cloneCard(monsterPool[i % monsterPool.length]));
+      for (let i = 0; i < 7; i++) deck.push(cloneCard(spellPool[i % spellPool.length]));
+      for (let i = 0; i < 7; i++) deck.push(cloneCard(trapPool[i % trapPool.length]));
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      return deck;
+    }
+
+    function makePlayer(name) {
+      return {
+        name,
+        lp: STARTING_LP,
+        deck: buildDeck(),
+        hand: [],
+        field: Array(MAX_FIELD).fill(null),
+        spellTrap: Array(MAX_FIELD).fill(null),
+        graveyard: [],
+        normalSummonUsed: false,
+        hasBattlePhase: false
+      };
+    }
+
+    function logMessage(message) {
+      state.log.unshift(message);
+      state.log = state.log.slice(0, 12);
+    }
+
+    function getCurrentPlayer() { return state.players[state.currentPlayer]; }
+    function getOpponentPlayer() { return state.players[1 - state.currentPlayer]; }
+
+    function ensureSetUp() {
+      if (!state.players.length) {
+        state.players = [makePlayer('Player 1'), makePlayer('Player 2')];
+        for (const player of state.players) {
+          for (let i = 0; i < STARTING_HAND; i++) {
+            if (player.deck.length) player.hand.push(player.deck.pop());
+          }
+        }
+      }
+    }
+
+    function redraw() {
+      updateLpDisplay();
+      renderField();
+      renderHand();
+      renderSpellTrapZone();
+      renderLog();
+      updateTurnInfo();
+      updateButtons();
+    }
+
+    function updateLpDisplay() {
+      document.getElementById('player1Lp').textContent = state.players[0].lp;
+      document.getElementById('player2Lp').textContent = state.players[1].lp;
+    }
+
+    function updateTurnInfo() {
+      const current = getCurrentPlayer();
+      document.getElementById('turnBadge').textContent = `${current.name}'s Turn`;
+      document.getElementById('phaseName').textContent = phases[state.phaseIndex];
+    }
+
+    function drawOne(player) {
+      if (!player.deck.length) {
+        logMessage(`${player.name} has no cards left to draw.`);
+        return false;
+      }
+      const card = player.deck.pop();
+      player.hand.push(card);
+      logMessage(`${player.name} draws ${card.name}.`);
+      return true;
+    }
+
+    function discardToSix(player) {
+      while (player.hand.length > 6) {
+        const disc = player.hand.pop();
+        if (disc) {
+          player.graveyard.push(disc);
+          logMessage(`${player.name} discards ${disc.name} to 6 cards.`);
+        }
+      }
+    }
+
+    function findCardLocation(player, cardId) {
+      const handIdx = player.hand.findIndex(c => c && c.id === cardId);
+      if (handIdx !== -1) return { zone: 'hand', index: handIdx };
+      const fieldIdx = player.field.findIndex(c => c && c.id === cardId);
+      if (fieldIdx !== -1) return { zone: 'field', index: fieldIdx };
+      const stIdx = player.spellTrap.findIndex(c => c && c.id === cardId);
+      if (stIdx !== -1) return { zone: 'spellTrap', index: stIdx };
+      return null;
+    }
+
+    function selectCard(cardId, ownerIndex) {
+      state.selectedCard = { cardId, ownerIndex };
+      redraw();
+    }
+
+    function canSummon(card) {
+      if (!card || card.type !== 'monster') return false;
+      const player = getCurrentPlayer();
+      if (state.phaseIndex !== 2 && state.phaseIndex !== 4) return false;
+      if (player.normalSummonUsed) return false;
+      if (player.field.filter(Boolean).length >= MAX_FIELD) return false;
+      const level = card.level || 0;
+      const fieldCount = player.field.filter(Boolean).length;
+      if (level <= 4) return true;
+      if (level <= 6) return fieldCount >= 1;
+      return fieldCount >= 2;
+    }
+
+    function tributeForSummon(cardLevel) {
+      const player = getCurrentPlayer();
+      const need = cardLevel <= 6 ? 1 : 2;
+      const tributes = [];
+      player.field.forEach(card => { if (card && tributes.length < need) tributes.push(card); });
+      if (tributes.length < need) return null;
+      tributes.forEach(tribute => {
+        const idx = player.field.findIndex(c => c && c.id === tribute.id);
+        if (idx !== -1) {
+          player.graveyard.push(player.field[idx]);
+          player.field[idx] = null;
+        }
+      });
+      return tributes;
+    }
+
+    function summonSelectedCard() {
+      if (state.winner) return;
+      const player = getCurrentPlayer();
+      if (!state.selectedCard || state.selectedCard.ownerIndex !== state.currentPlayer) return;
+      const loc = findCardLocation(player, state.selectedCard.cardId);
+      if (!loc || loc.zone !== 'hand') return;
+      const card = player.hand[loc.index];
+      if (!card || !canSummon(card)) {
+        logMessage('That monster cannot be summoned right now.');
+        redraw();
+        return;
+      }
+
+      if (card.level > 4) {
+        const tribute = tributeForSummon(card.level);
+        if (!tribute) {
+          logMessage(`${card.name} requires tributes.`);
+          return;
+        }
+      }
+
+      player.hand.splice(loc.index, 1);
+      const idx = player.field.findIndex(slot => slot === null);
+      if (idx === -1) {
+        logMessage(`${player.name} has no open monster slots.`);
+        return;
+      }
+      player.field[idx] = { ...card, faceUp: true, isFaceDown: false, position: 'attack', canAttack: true };
+      player.normalSummonUsed = true;
+      logMessage(`${player.name} summons ${card.name}.`);
+      state.selectedCard = null;
+      redraw();
+    }
+
+    function setMonsterSelected() {
+      if (state.winner) return;
+      const player = getCurrentPlayer();
+      if (!state.selectedCard || state.selectedCard.ownerIndex !== state.currentPlayer) return;
+      const loc = findCardLocation(player, state.selectedCard.cardId);
+      if (!loc || loc.zone !== 'hand') return;
+      const card = player.hand[loc.index];
+      if (!card || card.type !== 'monster') {
+        logMessage('Select a monster to set.');
+        return;
+      }
+      if (state.phaseIndex !== 2 && state.phaseIndex !== 4) {
+        logMessage('You can only set monsters in Main Phases.');
+        return;
+      }
+      if (player.field.filter(Boolean).length >= MAX_FIELD) {
+        logMessage('Your field is full.');
+        return;
+      }
+
+      player.hand.splice(loc.index, 1);
+      const idx = player.field.findIndex(slot => slot === null);
+      player.field[idx] = { ...card, faceUp: false, isFaceDown: true, position: 'defense', canAttack: false, setTurn: state.turnNumber };
+      player.normalSummonUsed = true;
+      logMessage(`${player.name} sets ${card.name} face-down.`);
+      state.selectedCard = null;
+      redraw();
+    }
+
+    function setSpellTrapSelected() {
+      if (state.winner) return;
+      const player = getCurrentPlayer();
+      if (!state.selectedCard || state.selectedCard.ownerIndex !== state.currentPlayer) return;
+      const loc = findCardLocation(player, state.selectedCard.cardId);
+      if (!loc || loc.zone !== 'hand') return;
+      const card = player.hand[loc.index];
+      if (!card || (card.type !== 'spell' && card.type !== 'trap')) {
+        logMessage('Select a spell or trap in your hand.');
+        return;
+      }
+      const idx = player.spellTrap.findIndex(slot => slot === null);
+      if (idx === -1) {
+        logMessage('Your Spell/Trap zone is full.');
+        return;
+      }
+      player.hand.splice(loc.index, 1);
+      player.spellTrap[idx] = { ...card, faceUp: false, isFaceDown: true, setTurn: state.turnNumber };
+      logMessage(`${player.name} sets ${card.name}.`);
+      state.selectedCard = null;
+      redraw();
+    }
+
+    function resolveEffect(card, owner, opponent) {
+      if (card.effect === 'draw2') {
+        for (let i = 0; i < 2; i++) drawOne(owner);
+      }
+      if (card.effect === 'deal800') {
+        opponent.lp -= 800;
+        logMessage(`${owner.name} activates ${card.name} and deals 800 damage.`);
+      }
+      if (card.effect === 'destroyAllMonsters') {
+        owner.field.forEach((monster, idx) => { if (monster) { owner.graveyard.push(monster); owner.field[idx] = null; } });
+        opponent.field.forEach((monster, idx) => { if (monster) { opponent.graveyard.push(monster); opponent.field[idx] = null; } });
+        logMessage(`${owner.name} activates ${card.name}, destroying all monsters.`);
+      }
+      if (card.effect === 'draw3discard1') {
+        for (let i = 0; i < 3; i++) drawOne(owner);
+        if (owner.hand.length > 6) {
+          const disc = owner.hand.pop();
+          if (disc) owner.graveyard.push(disc);
+          logMessage(`${owner.name} discards ${disc ? disc.name : 'a card'} after Graceful Charity.`);
+        }
+      }
+      if (card.effect === 'revive') {
+        const reviveable = owner.graveyard.filter(c => c.type === 'monster');
+        if (reviveable.length) {
+          const revived = reviveable.pop();
+          const idx = owner.field.findIndex(slot => slot === null);
+          if (idx !== -1) {
+            owner.field[idx] = { ...revived, faceUp: true, isFaceDown: false, position: 'attack', canAttack: false };
+            logMessage(`${owner.name} revives ${revived.name}.`);
+          }
+        }
+      }
+      if (card.effect === 'destroyAttackers') {
+        const attacker = opponent.field.find(monster => monster && monster.canAttack);
+        if (attacker) {
+          const idx = opponent.field.findIndex(monster => monster && monster.id === attacker.id);
+          opponent.graveyard.push(attacker);
+          opponent.field[idx] = null;
+          logMessage(`${owner.name}'s Mirror Force destroys ${attacker.name}.`);
+        }
+      }
+      if (card.effect === 'destroyLevel4') {
+        const target = opponent.field.find(monster => monster && monster.level <= 4);
+        if (target) {
+          const idx = opponent.field.findIndex(monster => monster && monster.id === target.id);
+          opponent.graveyard.push(target);
+          opponent.field[idx] = null;
+          logMessage(`${owner.name}'s Trap Hole destroys ${target.name}.`);
+        }
+      }
+      if (card.effect === 'draw1') {
+        drawOne(owner);
+      }
+      if (card.effect === 'reflectDamage') {
+        const damage = 500;
+        owner.lp += damage;
+        opponent.lp -= damage;
+        logMessage(`${owner.name} reflects 500 damage.`);
+      }
+      if (card.effect === 'negateBattle') {
+        logMessage(`${owner.name} activates Negate Attack.`);
+      }
+    }
+
+    function activateSelectedCard() {
+      if (state.winner) return;
+      const player = getCurrentPlayer();
+      if (!state.selectedCard || state.selectedCard.ownerIndex !== state.currentPlayer) return;
+      const loc = findCardLocation(player, state.selectedCard.cardId);
+      if (!loc) return;
+
+      if (loc.zone === 'spellTrap') {
+        const card = player.spellTrap[loc.index];
+        if (!card) return;
+        if (card.isFaceDown && card.setTurn === state.turnNumber) {
+          logMessage(`${card.name} cannot be activated on the turn it was set.`);
+          return;
+        }
+        resolveEffect(card, player, getOpponentPlayer());
+        player.spellTrap[loc.index] = null;
+        player.graveyard.push(card);
+        state.selectedCard = null;
+        redraw();
+        return;
+      }
+
+      if (loc.zone === 'hand') {
+        const card = player.hand[loc.index];
+        if (!card || (card.type !== 'spell' && card.type !== 'trap')) {
+          logMessage('Select a Spell or Trap card to activate.');
+          return;
+        }
+        resolveEffect(card, player, getOpponentPlayer());
+        player.hand.splice(loc.index, 1);
+        player.graveyard.push(card);
+        state.selectedCard = null;
+        redraw();
+        return;
+      }
+    }
+
+    function directAttack(attacker) {
+      const player = getCurrentPlayer();
+      const opponent = getOpponentPlayer();
+      const damage = attacker.atk;
+      opponent.lp -= damage;
+      attacker.canAttack = false;
+      logMessage(`${attacker.name} attacks directly for ${damage} damage.`);
+      if (opponent.lp <= 0) state.winner = player.name;
+      state.selectedCard = null;
+      redraw();
+    }
+
+    function battleMonster(attackerId, targetId) {
+      const player = getCurrentPlayer();
+      const opponent = getOpponentPlayer();
+      const attackerIndex = player.field.findIndex(card => card && card.id === attackerId);
+      if (attackerIndex === -1) return;
+      const attacker = player.field[attackerIndex];
+      if (!attacker || attacker.isFaceDown || attacker.position !== 'attack' || !attacker.canAttack) {
+        logMessage('Select a valid monster that can attack.');
+        return;
+      }
+
+      const targetIndex = opponent.field.findIndex(card => card && card.id === targetId);
+      if (targetIndex === -1) {
+        directAttack(attacker);
+        return;
+      }
+
+      const target = opponent.field[targetIndex];
+      attacker.canAttack = false;
+
+      if (attacker.atk > target.atk) {
+        opponent.lp -= attacker.atk - target.atk;
+        opponent.graveyard.push(target);
+        opponent.field[targetIndex] = null;
+        logMessage(`${attacker.name} defeats ${target.name} and deals ${attacker.atk - target.atk} damage.`);
+      } else if (attacker.atk < target.atk) {
+        player.lp -= target.atk - attacker.atk;
+        player.graveyard.push(attacker);
+        player.field[attackerIndex] = null;
+        logMessage(`${target.name} defeats ${attacker.name} and deals ${target.atk - attacker.atk} damage.`);
+      } else {
+        player.graveyard.push(attacker);
+        opponent.graveyard.push(target);
+        player.field[attackerIndex] = null;
+        opponent.field[targetIndex] = null;
+        logMessage(`${attacker.name} and ${target.name} are both destroyed.`);
+      }
+
+      if (player.lp <= 0) state.winner = opponent.name;
+      if (opponent.lp <= 0) state.winner = player.name;
+      if (state.winner) logMessage(`${state.winner} wins the duel!`);
+      state.selectedCard = null;
+      redraw();
+    }
+
+    function nextPhase() {
+      if (state.winner) return;
+      const current = getCurrentPlayer();
+
+      if (state.phaseIndex === 0) {
+        if (state.turnNumber !== 1 || state.currentPlayer === 1) {
+          drawOne(current);
+        } else {
+          logMessage(`${current.name} does not draw on the first turn.`);
+        }
+      }
+
+      if (state.phaseIndex < phases.length - 1) {
+        state.phaseIndex += 1;
+      } else {
+        discardToSix(current);
+        state.currentPlayer = 1 - state.currentPlayer;
+        state.phaseIndex = 0;
+        state.turnNumber += 1;
+        state.selectedCard = null;
+        logMessage(`${getCurrentPlayer().name} begins their turn.`);
+        redraw();
+        return;
+      }
+
+      if (phases[state.phaseIndex] === 'Battle Phase') {
+        current.field.forEach(card => { if (card) card.canAttack = true; });
+        logMessage(`${current.name} enters the Battle Phase.`);
+      }
+
+      if (phases[state.phaseIndex] === 'End Phase') {
+        discardToSix(current);
+        logMessage(`${current.name} ends the turn.`);
+      }
+
+      redraw();
+    }
+
+    function renderField() {
+      const current = getCurrentPlayer();
+      const opp = getOpponentPlayer();
+      renderSlots(document.getElementById('playerField'), current.field, false);
+      renderSlots(document.getElementById('oppField'), opp.field, true);
+      document.getElementById('playerFieldCount').textContent = `${current.field.filter(Boolean).length} / 5`;
+      document.getElementById('oppFieldCount').textContent = `${opp.field.filter(Boolean).length} / 5`;
+    }
+
+    function renderSlots(container, cards, enemy) {
+      container.innerHTML = '';
+      for (let i = 0; i < MAX_FIELD; i++) {
+        const card = cards[i];
+        const slot = document.createElement('div');
+        if (!card) {
+          slot.className = 'slot empty';
+          slot.textContent = 'Empty';
+        } else {
+          const selected = state.selectedCard && state.selectedCard.cardId === card.id && state.selectedCard.ownerIndex === (enemy ? 1 - state.currentPlayer : state.currentPlayer);
+          slot.className = `slot filled ${enemy ? 'enemy' : ''} ${selected ? 'selected' : ''}`;
+          const faceLabel = enemy && card.isFaceDown ? 'Set Monster' : card.name;
+          const atk = enemy && card.isFaceDown ? '?' : card.atk;
+          const def = enemy && card.isFaceDown ? '?' : card.def;
+          const status = card.isFaceDown ? 'Set' : (card.position === 'attack' ? 'ATK' : 'DEF');
+          slot.innerHTML = `<div class="name">${faceLabel}</div><div class="stats">ATK ${atk} / DEF ${def}</div><div class="status">${status}</div>`;
+          slot.onclick = () => {
+            if (enemy) {
+              if (state.selectedCard && state.selectedCard.ownerIndex === state.currentPlayer) {
+                const selectedCard = getCurrentPlayer().field.find(c => c && c.id === state.selectedCard.cardId);
+                if (selectedCard) battleMonster(selectedCard.id, card.id);
+              }
+            } else {
+              selectCard(card.id, state.currentPlayer);
+            }
+          };
+        }
+        container.appendChild(slot);
+      }
+    }
+
+    function renderHand() {
+      const current = getCurrentPlayer();
+      const handEl = document.getElementById('handArea');
+      handEl.innerHTML = '';
+      current.hand.forEach(card => {
+        const cardEl = document.createElement('div');
+        const selected = state.selectedCard && state.selectedCard.cardId === card.id && state.selectedCard.ownerIndex === state.currentPlayer;
+        cardEl.className = `card ${selected ? 'selected' : ''}`;
+        cardEl.innerHTML = `
+          <div class="type">${card.type}</div>
+          <div class="name">${card.name}</div>
+          <div class="meta">
+            <span>${card.type === 'monster' ? `Lv ${card.level}` : 'Effect'}</span>
+            <span>${card.type === 'monster' ? `${card.atk}/${card.def}` : ''}</span>
           </div>
-          <div id="handArea" class="hand-area"></div>
-        </div>
+        `;
+        cardEl.onclick = () => selectCard(card.id, state.currentPlayer);
+        handEl.appendChild(cardEl);
+      });
+      document.getElementById('handCount').textContent = current.hand.length;
+    }
 
-        <div class="zone-card">
-          <div class="zone-header">
-            <h3>Spell / Trap Zone</h3>
-            <span id="spellTrapCount">0</span>
-          </div>
-          <div id="spellTrapArea" class="field-grid small-grid"></div>
-        </div>
-      </section>
+    function renderSpellTrapZone() {
+      const zoneEl = document.getElementById('stZone');
+      zoneEl.innerHTML = '';
+      const current = getCurrentPlayer();
+      for (let i = 0; i < MAX_FIELD; i++) {
+        const card = current.spellTrap[i];
+        const slot = document.createElement('div');
+        if (!card) {
+          slot.className = 'slot empty';
+          slot.textContent = 'Empty';
+        } else {
+          const selected = state.selectedCard && state.selectedCard.cardId === card.id && state.selectedCard.ownerIndex === state.currentPlayer;
+          slot.className = `slot filled ${selected ? 'selected' : ''}`;
+          slot.innerHTML = `<div class="name">${card.isFaceDown ? 'Set' : card.name}</div><div class="stats">${card.type.toUpperCase()}</div><div class="status">${card.isFaceDown ? 'Face Down' : 'Face Up'}</div>`;
+          slot.onclick = () => selectCard(card.id, state.currentPlayer);
+        }
+        zoneEl.appendChild(slot);
+      }
+      document.getElementById('stZoneCount').textContent = current.spellTrap.filter(Boolean).length;
+    }
 
-      <section class="action-panel">
-        <div class="action-buttons">
-          <button id="summonBtn" class="primary">Normal Summon</button>
-          <button id="setMonsterBtn" class="secondary">Set Monster</button>
-          <button id="setSpellBtn" class="secondary">Set Spell/Trap</button>
-          <button id="activateBtn" class="secondary">Activate</button>
-          <button id="attackBtn" class="warning">Attack</button>
-        </div>
-      </section>
+    function renderLog() {
+      document.getElementById('statusLog').innerHTML = state.log.map(msg => `<div>${msg}</div>`).join('');
+    }
 
-      <div id="statusLog" class="status-log"></div>
-    </div>
+    function updateButtons() {
+      const current = getCurrentPlayer();
+      const selected = state.selectedCard;
+      const validOwner = selected && selected.ownerIndex === state.currentPlayer;
+      const selectedInHand = validOwner && current.hand.some(card => card && card.id === selected.cardId);
+      const selectedOnField = validOwner && current.field.some(card => card && card.id === selected.cardId);
+      const selectedInST = validOwner && current.spellTrap.some(card => card && card.id === selected.cardId);
+      const main = state.phaseIndex === 2 || state.phaseIndex === 4;
+      const battle = state.phaseIndex === 3;
 
-    <script src="app.js"></script>
-  </body>
+      document.getElementById('summonBtn').disabled = !(selectedInHand && main && !current.normalSummonUsed);
+      document.getElementById('setMonsterBtn').disabled = !(selectedInHand && main);
+      document.getElementById('setStBtn').disabled = !(selectedInHand && main);
+      document.getElementById('activateBtn').disabled = !(selectedInST || (selectedInHand && current.hand.some(card => card && card.id === selected.cardId && (card.type === 'spell' || card.type === 'trap'))));
+      document.getElementById('attackBtn').disabled = !(selectedOnField && battle);
+    }
+
+    function startGame() {
+      state.players = [makePlayer('Player 1'), makePlayer('Player 2')];
+      state.currentPlayer = 0;
+      state.phaseIndex = 0;
+      state.turnNumber = 1;
+      state.winner = null;
+      state.selectedCard = null;
+      state.log = ['Player 1 starts the duel. Player 1 does not draw on turn 1.'];
+      for (const player of state.players) {
+        for (let i = 0; i < STARTING_HAND; i++) {
+          if (player.deck.length) player.hand.push(player.deck.pop());
+        }
+      }
+      redraw();
+    }
+
+    function bindEvents() {
+      document.getElementById('nextPhaseBtn').addEventListener('click', nextPhase);
+      document.getElementById('restartBtn').addEventListener('click', startGame);
+      document.getElementById('summonBtn').addEventListener('click', summonSelectedCard);
+      document.getElementById('setMonsterBtn').addEventListener('click', setMonsterSelected);
+      document.getElementById('setStBtn').addEventListener('click', setSpellTrapSelected);
+      document.getElementById('activateBtn').addEventListener('click', activateSelectedCard);
+      document.getElementById('endTurnBtn').addEventListener('click', () => {
+        if (state.winner) return;
+        discardToSix(getCurrentPlayer());
+        state.currentPlayer = 1 - state.currentPlayer;
+        state.phaseIndex = 0;
+        state.turnNumber += 1;
+        state.selectedCard = null;
+        logMessage(`${getCurrentPlayer().name} begins their turn.`);
+        redraw();
+      });
+      document.getElementById('attackBtn').addEventListener('click', () => {
+        if (state.winner) return;
+        const current = getCurrentPlayer();
+        const selected = state.selectedCard;
+        if (!selected || selected.ownerIndex !== state.currentPlayer) {
+          logMessage('Select a monster from your field to attack.');
+          redraw();
+          return;
+        }
+        const monster = current.field.find(card => card && card.id === selected.cardId);
+        if (!monster) {
+          logMessage('Select a monster on your field.');
+          return;
+        }
+        const opponent = getOpponentPlayer();
+        if (!opponent.field.some(Boolean)) {
+          directAttack(monster);
+          return;
+        }
+        const target = opponent.field.find(Boolean);
+        if (target) battleMonster(monster.id, target.id);
+      });
+    }
+
+    bindEvents();
+    ensureSetUp();
+    startGame();
+  </script>
+</body>
 </html>
